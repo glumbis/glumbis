@@ -1,5 +1,14 @@
 ## Hi there 👋
 
+<p align="center">
+  <img src="ascii.gif" alt="ASCII art animation" width="45%">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="dark_mode.svg">
+    <source media="(prefers-color-scheme: light)" srcset="light_mode.svg">
+    <img src="dark_mode.svg" alt="lukas@dam neofetch-style info panel" width="53%">
+  </picture>
+</p>
+
 <!--
 **glumbis/glumbis** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 
