@@ -26,7 +26,7 @@ text, tspan {white-space: pre;}
 <tspan x="22" y="274"><tspan class="cc">. </tspan></tspan>
 <tspan x="22" y="294"><tspan class="cc">. </tspan><tspan class="key">Interests.Software</tspan>: <tspan class="cc">............ </tspan><tspan class="value">Game Dev, Video Editing</tspan></tspan>
 <tspan x="22" y="314"><tspan class="cc">. </tspan><tspan class="key">Interests.Hardware</tspan>: <tspan class="cc">................... </tspan><tspan class="value">3D Printing, CAD</tspan></tspan>
-<tspan x="22" y="334"><tspan class="cc">. </tspan><tspan class="key">Interests.Science</tspan>: <tspan class="cc">......... </tspan><tspan class="value">Math, Physics, Astrophysics</tspan></tspan>
+<tspan x="22" y="334"><tspan class="cc">. </tspan><tspan class="key">Interests.Science</tspan>: <tspan class="cc">....................... </tspan><tspan class="value">Math, Physics</tspan></tspan>
 <tspan x="22" y="354"><tspan class="cc">. </tspan></tspan>
 <tspan x="22" y="374">- Projects ————————————————————————————————————————————-—-</tspan>
 <tspan x="22" y="394"><tspan class="cc">. </tspan><tspan class="key">Human-Typer-App</tspan>: <tspan class="cc">................................ </tspan><tspan class="value">Python</tspan></tspan>
@@ -35,7 +35,7 @@ text, tspan {white-space: pre;}
 <tspan x="22" y="454"><tspan class="cc">. </tspan></tspan>
 <tspan x="22" y="474">- GitHub Stats ————————————————————————————————————————-—-</tspan>
 <tspan x="22" y="494"><tspan class="cc">. </tspan><tspan class="key">Repos</tspan>: <tspan class="cc">......... </tspan><tspan class="value">18</tspan> {<tspan class="key">Contributed</tspan>: <tspan class="value">18</tspan>} | <tspan class="key">Stars</tspan>: <tspan class="cc">...... </tspan><tspan class="value">32</tspan></tspan>
-<tspan x="22" y="514"><tspan class="cc">. </tspan><tspan class="key">Commits</tspan>: <tspan class="cc">........................................... </tspan><tspan class="value">199</tspan></tspan>
-<tspan x="22" y="534"><tspan class="cc">. </tspan><tspan class="key">Lines of Code</tspan>: <tspan class="cc">......... </tspan><tspan class="value">234,468</tspan> ( <tspan class="add">318,074++</tspan>, <tspan class="dele">83,606--</tspan> )</tspan>
+<tspan x="22" y="514"><tspan class="cc">. </tspan><tspan class="key">Commits</tspan>: <tspan class="cc">........................................... </tspan><tspan class="value">200</tspan></tspan>
+<tspan x="22" y="534"><tspan class="cc">. </tspan><tspan class="key">Lines of Code on GitHub</tspan>: <tspan class="cc">.. </tspan><tspan class="value">79,009</tspan> ( <tspan class="add">86,606++</tspan>, <tspan class="dele">7,597--</tspan> )</tspan>
 </text>
 </svg>

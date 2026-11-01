@@ -25,8 +25,10 @@ except Exception:
 BIRTHDAY = datetime.date(2008, 1, 27)
 WIDTH = 58  # characters per line
 API = "https://api.github.com/graphql"
+REST_API = "https://api.github.com"
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE_DIR = os.path.join(HERE, "cache")
+CACHE_VERSION = "# loc-v2: source files only, merges skipped"
 
 THEMES = {
     "dark_mode.svg": dict(bg="#161b22", text="#c9d1d9", key="#ffa657", value="#a5d6ff",
@@ -50,7 +52,7 @@ STATIC_INFO = [
     None,
     ("Interests.Software", "Game Dev, Video Editing"),
     ("Interests.Hardware", "3D Printing, CAD"),
-    ("Interests.Science", "Math, Physics, Astrophysics"),
+    ("Interests.Science", "Math, Physics"),
     None,
 ]
 
@@ -72,11 +74,11 @@ class GitHub:
         self.session.headers["Authorization"] = f"bearer {token}"
         self.calls = 0
 
-    def query(self, query, variables, retries=3):
-        """Run a GraphQL query; raises GitHubError rather than returning partial data."""
+    def _request(self, method, url, retries=3, **kwargs):
+        """Send a request; raises GitHubError rather than returning partial data."""
         for attempt in range(retries + 1):
             try:
-                r = self.session.post(API, json={"query": query, "variables": variables}, timeout=60)
+                r = self.session.request(method, url, timeout=60, **kwargs)
             except requests.RequestException as e:
                 if attempt < retries:
                     time.sleep(2 ** attempt * 5)
@@ -92,14 +94,20 @@ class GitHub:
                 reset = r.headers.get("X-RateLimit-Reset")
                 when = (datetime.datetime.fromtimestamp(int(reset)).isoformat() if reset else "unknown")
                 raise GitHubError(f"GitHub rate limit or abuse protection hit ({r.status_code}); resets at {when}. "
-                     f"Response: {r.text[:300]}")
+                                  f"Response: {r.text[:300]}")
             if r.status_code != 200:
-                raise GitHubError(f"GitHub API returned {r.status_code}: {r.text[:300]}")
-            data = r.json()
-            if data.get("errors"):
-                raise GitHubError(f"GraphQL error: {data['errors']}")
-            return data["data"]
+                raise GitHubError(f"GitHub API returned {r.status_code} for {url}: {r.text[:300]}")
+            return r.json()
         raise GitHubError("GitHub API kept failing after retries")
+
+    def query(self, query, variables):
+        data = self._request("POST", API, json={"query": query, "variables": variables})
+        if data.get("errors"):
+            raise GitHubError(f"GraphQL error: {data['errors']}")
+        return data["data"]
+
+    def rest(self, path, **params):
+        return self._request("GET", REST_API + path, params=params)
 
 
 USER_QUERY = """
@@ -130,15 +138,15 @@ query($login: String!, $cursor: String) {
 }"""
 
 HISTORY_QUERY = """
-query($owner: String!, $name: String!, $cursor: String, $author: ID!, $n: Int!) {
+query($owner: String!, $name: String!, $cursor: String, $author: ID!) {
   repository(owner: $owner, name: $name) {
     defaultBranchRef {
       target {
         ... on Commit {
-          history(first: $n, after: $cursor, author: {id: $author}) {
+          history(first: 100, after: $cursor, author: {id: $author}) {
             totalCount
             pageInfo { hasNextPage endCursor }
-            nodes { additions deletions }
+            nodes { oid parents { totalCount } }
           }
         }
       }
@@ -157,29 +165,65 @@ def get_repos(gh, login):
         cursor = conn["pageInfo"]["endCursor"]
 
 
+# Lines of code count only hand-written source files. Generated or third-party
+# content (Unity .meta/.prefab/.asset files, bundled data like OpenCV's
+# haarcascade XML, lock files, minified bundles, vendored folders) is skipped,
+# and so are merge commits, which re-count branch work or pull in upstream code.
+SOURCE_EXTENSIONS = {
+    "py", "pyw", "cs", "lua", "js", "jsx", "mjs", "cjs", "ts", "tsx", "html", "htm", "css", "scss",
+    "sass", "less", "vue", "svelte", "c", "h", "cc", "cpp", "cxx", "hpp", "hh", "rs", "go", "java",
+    "kt", "kts", "swift", "rb", "php", "sh", "bash", "ps1", "bat", "cmd", "sql", "shader", "hlsl",
+    "glsl", "cginc", "compute", "wgsl", "gd", "r", "m", "dart", "scala", "zig", "toml", "yml", "yaml",
+}
+SKIP_NAMES = {"package-lock.json", "yarn.lock", "pnpm-lock.yaml", "packages-lock.json", "cargo.lock",
+              "poetry.lock", "uv.lock", "pipfile.lock", "composer.lock", "gemfile.lock"}
+SKIP_DIRS = {"node_modules", "vendor", "third_party", "thirdparty", "third-party", "external", "dist",
+             "build", "library", "packages", "plugins", "site-packages", ".venv", "venv"}
+
+
+def is_source(path):
+    parts = path.lower().split("/")
+    name = parts[-1]
+    if name in SKIP_NAMES or any(p in SKIP_DIRS for p in parts[:-1]):
+        return False
+    if ".min." in name or "." not in name:
+        return False
+    return name.rsplit(".", 1)[1] in SOURCE_EXTENSIONS
+
+
+def commit_loc(gh, owner, name, oid):
+    """Additions/deletions in source files for one commit (REST gives per-file stats)."""
+    additions = deletions = 0
+    page = 1
+    while True:
+        files = gh.rest(f"/repos/{owner}/{name}/commits/{oid}", per_page=300, page=page).get("files", [])
+        for f in files:
+            if is_source(f["filename"]):
+                additions += f["additions"]
+                deletions += f["deletions"]
+        if len(files) < 300:
+            return additions, deletions
+        page += 1
+
+
 def walk_history(gh, repo, author_id):
     """Return (commits, additions, deletions) authored by author_id on the default branch."""
+    owner, name = repo["owner"]["login"], repo["name"]
     commits = additions = deletions = 0
-    cursor, n = None, 100
+    cursor = None
     while True:
-        # Large pages with additions/deletions occasionally time out (502); shrink and retry.
-        for size in (n, 50, 25):
-            try:
-                data = gh.query(HISTORY_QUERY, {"owner": repo["owner"]["login"], "name": repo["name"],
-                                                "cursor": cursor, "author": author_id, "n": size},
-                                retries=1 if size > 25 else 3)
-                break
-            except GitHubError:
-                if size == 25:
-                    raise
+        data = gh.query(HISTORY_QUERY, {"owner": owner, "name": name, "cursor": cursor, "author": author_id})
         ref = data["repository"]["defaultBranchRef"]
         if ref is None:
             return 0, 0, 0
         hist = ref["target"]["history"]
         commits = hist["totalCount"]
         for node in hist["nodes"]:
-            additions += node["additions"]
-            deletions += node["deletions"]
+            if node["parents"]["totalCount"] > 1:
+                continue
+            a, d = commit_loc(gh, owner, name, node["oid"])
+            additions += a
+            deletions += d
         if not hist["pageInfo"]["hasNextPage"]:
             return commits, additions, deletions
         cursor = hist["pageInfo"]["endCursor"]
@@ -201,7 +245,9 @@ def collect_loc(gh, login, repos, author_id):
     cache = {}
     if os.path.exists(path):
         with open(path) as f:
-            for line in f:
+            lines = f.read().splitlines()
+        # Entries from an older counting method are discarded and recomputed.
+        for line in lines[1:] if lines and lines[0] == CACHE_VERSION else []:
                 parts = line.split()
                 if len(parts) == 5:
                     cache[parts[0]] = tuple(int(p) for p in parts[1:])
@@ -217,7 +263,8 @@ def collect_loc(gh, login, repos, author_id):
             print(f"  walking {repo['nameWithOwner']} ({total} commits on default branch)")
             fresh[key] = (total, *walk_history(gh, repo, author_id))
 
-    with open(path, "w") as f:
+    with open(path, "w", newline="\n") as f:
+        f.write(CACHE_VERSION + "\n")
         for key in sorted(fresh):
             f.write(key + " " + " ".join(str(v) for v in fresh[key]) + "\n")
 

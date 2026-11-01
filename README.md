@@ -1,7 +1,11 @@
 ## Hi there 👋
 
 <p align="center">
-  <img src="ascii.gif" alt="ASCII art animation" width="45%">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="ascii_dark.gif">
+    <source media="(prefers-color-scheme: light)" srcset="ascii_light.gif">
+    <img src="ascii_dark.gif" alt="ASCII art animation" width="45%">
+  </picture>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="dark_mode.svg">
     <source media="(prefers-color-scheme: light)" srcset="light_mode.svg">
