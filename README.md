@@ -1,5 +1,3 @@
-## Hi there 👋
-
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="ascii_dark.gif">
