@@ -379,8 +379,10 @@ def render(lines, c):
 
 def main():
     token, login = os.environ.get("ACCESS_TOKEN"), os.environ.get("USER_NAME")
-    if not token or not login:
-        fail("set ACCESS_TOKEN and USER_NAME environment variables")
+    missing = [name for name, value in (("ACCESS_TOKEN", token), ("USER_NAME", login)) if not value]
+    if missing:
+        fail(f"{' and '.join(missing)} not set. In GitHub Actions, add it under the repository's "
+             "Settings > Secrets and variables > Actions > Repository secrets.")
 
     gh = GitHub(token)
     user = gh.query(USER_QUERY, {"login": login})["user"]
